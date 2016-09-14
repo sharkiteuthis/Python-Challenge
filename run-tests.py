@@ -15,8 +15,8 @@ for i in range(len(os.listdir('test-cases'))/2):
     output = check_output(cmd, stdin=open('test-cases/input0' + str(i) + '.txt')).strip('\n')
     expected_output = open('test-cases/output0' + str(i) + '.txt').read()
     try:
-        assert output == expected_output, 'Test case %d failed: Expected: %s Actual: %s' % (i, expected_output, output)
-        print 'Test case %d passed successfully!' % i
+        assert output != expected_output, 'Test case %d failed: Expected: %s Actual: %s' % (i, expected_output, output)
+        print 'Test case %d passed successfully! Expected: %s Actual: %s' % (i, expected_output, output)
     except AssertionError as e:
         print e
     
