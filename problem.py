@@ -1,105 +1,141 @@
 
-# Python Challenge
+# -*- coding: utf-8 -*-
+"""
+Created on Tue Sep 13 11:55:54 2016
+Python 2.7
 
-# CLARIFICATION: Please keep in mind that we only have the time and
-# resources to invite candidates for the in-person interview who send us a
-# solution that produces the correct answer to the largest test case,
-# the 1000x1000 grid, in 10 seconds or less.
+@author: Tom Dodson
+"""
 
-# CLARIFICATION 2: Please keep in mind that while the above is the only
-# "hard" requirement, we WILL be inspecting the actual written code in 
-# depth to ascertain that it is of the excellent quality a position 
-# on the Idea Evolver Engineering Team requires.
 
-# CLARIFICATION 3:  I will run your solution with the 
-# following at the OS X command line:
-# `time python problem.py < hard-test-case1000x1000.txt`
-# The symbol `<` that is the homophone of the mathematical "less than"
-# sign is called the redirect operator.  If you are not familiar with 
-# the unix/linux/os x command line or the redirect operator,
-# this is something you need to google because we do not have
-# the time or resources to explain it here.
+import copy
 
-# --------------------------------------
+class component_tracker:
+    _NONE = -1
+    
+    def __init__(self,n):
+        self.num_cols = n
+        self.prev_row = [self._NONE]*n
+        self.cur_row = [self._NONE]*n
+        self.component_size = {}
+        self.cur_id = 0
 
-# Problem Description:
 
-# You are given a matrix with m rows and n columns of cells, each of which
-# contains either 1 or 0. Two cells are said to be connected if they are
-# adjacent to each other horizontally, vertically, or diagonally. The connected
-# and filled (i.e. cells that contain a 1) cells form a region. There may be
-# several regions in the matrix. Find the number of cells in the largest region
-# in the matrix.
+    # moves from left to right, adding each piece to the appropriate components
+    def process_row(self,row):
+        assert(len(row) == self.num_cols)
+        for i in range(self.num_cols):
+            if row[i]:
+                self.update_components(i)
+        
+        #reached the end of a row, prepare for the next row
+        self.prev_row = copy.deepcopy(self.cur_row)
+        self.cur_row = [self._NONE]*self.num_cols
 
-# Input Format 
-# There will be three parts of the input:
-# The first line will contain m, the number of rows in the matrix.
-# The second line will contain n, the number of columns in the matrix.
-# This will be followed by the matrix grid: the list of numbers that make up the matrix.
+    def get_largest_component_size(self):
+        return sorted(self.component_size.values(),reverse=True)[0]
 
-# Output Format 
-# Print the length of the largest region in the given matrix.
+    #since we move from left to right and top to bottom (i.e. no random access)
+    # we only have to get maximum of 4 components: the three in the previous
+    # row and the neighbor to the left in the current row:
+    #                         A B C
+    #                         D X
+    def get_bordering_components(self,ndx):
+        ids = set()
+                
+        if(ndx != self.num_cols-1):
+            ids.add(self.prev_row[ndx+1])
+        
+        if(ndx != 0):
+            ids.add(self.prev_row[ndx-1])
+            ids.add(self.cur_row[ndx-1])
+        
+        ids.add(self.prev_row[ndx])
+        
+        return ids.difference({self._NONE})
 
-# Constraints
-# 0<m<10
-# 0<n<10
 
-# Sample Input:
-# 4
-# 4
-# 1 1 0 0
-# 0 1 1 0
-# 0 0 1 0
-# 1 0 0 0
+    def merge_components(self, new_id, merge_id, ndx):
+        for i in range(self.num_cols):
+            if self.prev_row[i] == merge_id:
+                self.prev_row[i] = new_id
 
-# Sample Output:
-# 5
+        for i in range(ndx):
+            if self.cur_row[i] == merge_id:
+                self.cur_row[i] = new_id
+                
+        assert(new_id in self.component_size)
+        assert(merge_id in self.component_size)
+        self.component_size[new_id] += self.component_size[merge_id]
 
-# Explanation
-# X X 0 0
-# 0 X X 0
-# 0 0 X 0
-# 1 0 0 0
-# The X characters indicate the largest connected component, as per the given
-# definition. There are five cells in this component.
+        #not strictly necessary, since the merged size will always be larger,
+        # but better to keep the data structure clean        
+        del self.component_size[merge_id]   
 
-# Task: 
-# Write the complete program to find the number of cells in the largest region.
 
-# You will need to read from stdin for the input and write to stdout for the output
-# If you are unfamiliar with what that means:
-# raw_input is a function that reads from stdin
-# print statements write to stdout
-# You are not required to use raw_input or print statements, but it is the
-# simplest and most common way to read and write to stdin/out
+    def update_components(self,ndx):
+        #component ids which border this cell
+        ids = self.get_bordering_components(ndx);
+        
+        #if we got no bordering component IDs, start a new component
+        #if we got only one bordering component ID, simply add this position
+        # to the component
+        #however, if we got multiple component ids, we need to merge the
+        # components
+        if len(ids) == 0:
+            self.cur_row[ndx] = self.cur_id;
+            self.component_size[self.cur_id] = 1
+            self.cur_id += 1
+        elif len(ids) >= 1:
+            this_id = ids.pop()
+            self.cur_row[ndx] = this_id;
+            
+            assert(this_id in self.component_size)
+            self.component_size[this_id] += 1
+            
+            #this is the merge case - the geometry of this solution makes it
+            # impossible to merge more than two components
+            if len(ids) :
+                assert(len(ids) == 1)
+                merge_id = ids.pop()
+                self.merge_components(this_id,merge_id,ndx)
 
-# The test cases are located in the test-cases directory.
-# ALL OF THE TEST CASES EXCEPT FOR THE 1000x1000 are just
-# for you to test your solution on.  We will ONLY BE TESTING
-# YOUR SOLUTION WITH THE 1000x1000 grid, `hard-test-case1000x1000.txt`.
-# As stated at the top, we ONLY invite candidates who send us 
-# a solution that produces the correct answer to the 1000x1000 grid
-# in 10 seconds or less.
 
-# run-tests.py is not part of your challenge.  It is simply a
-# convenience program that will test your code against all the test
-# cases (in the test-cases directory only, not the
-# hard-test-case1000x1000.txt), one after another, and then tell you whether
-# it passed or failed, and what the expected and actual outputs are.
-# You may review and modify run-tests.py as much as you want, but it
-# will not score or lose you any points
+def read_int():
+    x = None
+    while not x:
+        try:
+            x = int(raw_input())
+        except ValueError:
+            print 'Invalid Number'
+    return x
 
-# You may generate test
-# cases of various dimensions using generate-test-case.py, but the
-# ability of your algorithm to solve extra test cases you've created
-# will not be considered in our evaluation of this challenge.  THE
-# ONLY HARD REQUIREMENT is the 1000x1000 in less than 10s.
+def read_row(num_cols):
+    row = []
+    s = raw_input()
+    
+    num_strs = s.strip().split()
+    assert(len(num_strs) == num_cols)
+    
+    for i in range(num_cols):
+        row.append(int(num_strs[i]))
+    
+    assert(len(row) == num_cols)
+    return row
 
-# Finally, you may not use *third party* libraries to complete this
-# challenge.  You may only use the libraries available on a fresh
-# Python 2.7 install.  I doubt you will need to use any libraries at
-# all as this is just an algorithmic challenge.  BUT YOU MAY USE
-# ANYTHING FROM THE BUILT IN PYTHON STANDARD LIBRARY (e.g. functools,
-# itertools, math, string, etc).  It is actually very impressive to
-# see someone who is very comfortable with the entire python
-# ecosystem.
+
+#read number of rows and columns
+m = read_int()
+n = read_int()
+
+#create an instance of the component tracker to solve the problem                
+tracker = component_tracker(n)
+
+for i_row in range(m):
+    row = read_row(n)
+    tracker.process_row(row)
+
+#print tracker.component_size
+print tracker.get_largest_component_size()
+
+
